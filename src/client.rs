@@ -184,12 +184,15 @@ impl SlsClient {
 
 #[cfg(test)]
 mod test {
-    use chrono::Utc;
     use crate::client::SlsClient;
+    use crate::SlsLayer;
+    use chrono::Utc;
 
     #[tokio::test]
     async fn test() {
         use crate::proto::*;
+
+        SlsLayer::builder().access_secret(&"a".to_string());
 
         let client = SlsClient::new(
             env!("ACCESS_KEY").to_string(),
@@ -197,11 +200,11 @@ mod test {
             "cn-guangzhou.log.aliyuncs.com",
             "playground",
             "test",
-            None::<&str>,
+            Some("00000000000000000000000000000000"),
             #[cfg(feature = "deflate")]
-                10,
+            10,
         )
-            .unwrap();
+        .unwrap();
 
         let log_group = LogGroup {
             logs: vec![Log {
@@ -220,5 +223,4 @@ mod test {
 
         client.put_log(&log_group).await.unwrap();
     }
-
 }

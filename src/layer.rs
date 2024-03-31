@@ -190,11 +190,14 @@ impl SlsDispatcher {
 
 /// A guard that will send a shutdown signal to the dispatcher when dropped.
 pub struct WorkGuard {
-    pub(crate) shutdown: mpsc::Sender<()>,
+    pub(crate) shutdown: Option<mpsc::Sender<()>>,
 }
 
 impl Drop for WorkGuard {
     fn drop(&mut self) {
-        let _ = self.shutdown.blocking_send(());
+        let shutdown = self.shutdown.take().unwrap();
+        tokio::spawn(async move {
+            let _ = shutdown.send(()).await;
+        });
     }
 }
