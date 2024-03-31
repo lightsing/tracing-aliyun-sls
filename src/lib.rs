@@ -11,7 +11,7 @@
 #![deny(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-#[cfg(all(all(feature = "lz4", feature = "deflate"), not(docrs)))]
+#[cfg(all(all(feature = "lz4", feature = "deflate"), not(docsrs)))]
 compile_error!("`lz4` and `deflate` cannot be enabled at the same time");
 
 use std::borrow::Cow;
