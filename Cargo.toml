@@ -1,0 +1,37 @@
+[package]
+name = "tracing-aliyun-sls"
+description = "A tracing layer for aliyun sls"
+authors = ["Akase Haruka <light.tsing@gmail.com>"]
+repository = "https://github.com/lightsing/tracing-aliyun-sls"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+keywords = ["tracing", "aliyun", "sls"]
+categories = [
+    "asynchronous",
+    "development-tools::debugging",
+    "development-tools::profiling",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+base64 = "0.21"
+chrono = "0.4"
+hex = "0.4"
+hmac = "0.12"
+lz4_flex = { version = "0.11", optional = true }
+md5 = "0.7"
+miniz_oxide = { version = "0.7", optional = true }
+reqwest = { version = "0.12" }
+sha1 = "0.10"
+thiserror = "1.0"
+tracing = "0.1"
+tokio = { version = "1", features = ["macros"] }
+tracing-subscriber = "0.3"
+
+[features]
+lz4 = ["lz4_flex"]
+deflate = ["miniz_oxide"]
