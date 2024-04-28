@@ -2,6 +2,7 @@
 [![Crates.io][crates-badge]][crates-url]
 [![Documentation][docs-badge]][docs-url]
 ![MIT licensed][license-badge]
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Flightsing%2Ftracing-aliyun-sls.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Flightsing%2Ftracing-aliyun-sls?ref=badge_shield)
 
 [crates-badge]: https://img.shields.io/crates/v/tracing-aliyun-sls.svg
 [crates-url]: https://crates.io/crates/tracing-aliyun-sls
@@ -71,3 +72,6 @@ async fn main() {
         .init();
 }
 ```
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Flightsing%2Ftracing-aliyun-sls.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Flightsing%2Ftracing-aliyun-sls?ref=badge_large)
