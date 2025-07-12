@@ -1,0 +1,58 @@
+[package]
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+homepage = "https://github.com/lightsing/tracing-aliyun-sls/tree/master/crates/aliyun-sls"
+keywords = ["aliyun", "sls"]
+license.workspace = true
+name = "aliyun-sls"
+repository.workspace = true
+rust-version.workspace = true
+version = "0.1.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+async-lock.workspace = true
+base64.workspace = true
+compact_str.workspace = true
+heapless.workspace = true
+hex = { workspace = true, features = ["alloc"] }
+hmac.workspace = true
+http = { workspace = true, default-features = false, optional = true }
+jiff = { workspace = true, features = ["std"] }
+lz4_flex = { workspace = true, optional = true }
+md5.workspace = true
+miniz_oxide = { workspace = true, optional = true }
+nyquest = { workspace = true, optional = true }
+nyquest-interface = { workspace = true, optional = true }
+reqwest = { workspace = true, default-features = false, optional = true }
+sha1.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+ctor.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+
+
+[features]
+default = ["reqwest-default-tls"]
+
+deflate = ["dep:miniz_oxide"]
+lz4 = ["dep:lz4_flex"]
+
+reqwest = ["dep:reqwest", "dep:http"]
+reqwest-default-tls = [
+  "reqwest",
+  "reqwest/rustls-tls",
+]
+reqwest-rustls = [
+  "reqwest",
+  "reqwest/rustls-tls",
+]
+
+nyquest = ["dep:nyquest", "dep:nyquest-interface", "nyquest/async"]
