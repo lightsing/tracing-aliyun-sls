@@ -1,6 +1,5 @@
 use compact_str::CompactString;
-use std::borrow::Borrow;
-use std::{io, io::Write};
+use std::{borrow::Borrow, io, io::Write};
 
 cfg_if::cfg_if! {
     if #[cfg(all(feature = "inline-keypairs-16", not(feature = "inline-none")))] {
@@ -48,7 +47,7 @@ pub struct Log {
 }
 
 /// Metadata for a group of logs, including topic, source, and fixed capacity key-value tags.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LogGroupMetadata {
     topic: Option<CompactString>,
     source: Option<CompactString>,
