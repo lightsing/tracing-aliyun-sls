@@ -1,8 +1,10 @@
 //! Aliyun SLS client
 
 pub use self::builder::{SlsClientBuilder, SlsClientBuilderError};
-use crate::proto::{calc_log_group_encoded_len, encode_log_group};
-use crate::{Log, LogGroupMetadata};
+use crate::{
+    Log, LogGroupMetadata,
+    proto::{calc_log_group_encoded_len, encode_log_group},
+};
 use std::sync::Arc;
 use tracing::{Instrument, Level};
 
