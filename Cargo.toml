@@ -15,16 +15,19 @@ repository = "https://github.com/lightsing/tracing-aliyun-sls.git"
 rust-version = "1.85"
 
 [workspace.dependencies]
+async-channel = { version = "2.5", default-features = false }
 async-lock = { version = "3.4", default-features = false }
 base64 = { version = "0.22", default-features = false }
-blake3 = { version = "1.5", default-features = false }
+bitflags = "2.9"
+cfg-if = "1.0"
 compact_str = { version = "0.9", default-features = false }
 ctor = "0.4"
-heapless = { version = "0.8", default-features = false }
+heapless = "0.8"
 hex = { version = "0.4", default-features = false }
 hmac = "0.12"
 http = { version = "1.1", default-features = false }
 jiff = { version = "0.2.15", default-features = false }
+litemap = { version = "0.8", default-features = false }
 lz4_flex = { version = "0.11", default-features = false }
 md5 = { version = "0.8", default-features = false }
 miniz_oxide = { version = "0.8", default-features = false }
@@ -32,6 +35,7 @@ nyquest = { git = "https://github.com/bdbai/nyquest" }
 nyquest-interface = { git = "https://github.com/bdbai/nyquest" }
 reqwest = { version = "0.12", default-features = false }
 sha1 = { version = "0.10", default-features = false }
+smallvec = { git = "https://github.com/lightsing/rust-smallvec.git", branch = "feat/litemap" }
 thiserror = "2"
 tokio = { version = "1", default-features = false }
 tracing = "0.1"

@@ -1,6 +1,8 @@
 //! Aliyun SLS client
 
-use crate::proto::{Log, LogGroupMetadata, calc_log_group_encoded_len, encode_log_group};
+pub use self::builder::{SlsClientBuilder, SlsClientBuilderError};
+use crate::proto::{calc_log_group_encoded_len, encode_log_group};
+use crate::{Log, LogGroupMetadata};
 use std::sync::Arc;
 use tracing::{Instrument, Level};
 
@@ -8,8 +10,6 @@ mod builder;
 mod headers;
 mod imp;
 mod signer;
-
-pub use builder::{SlsClientBuilder, SlsClientBuilderError};
 
 /// A client for sending logs to Aliyun SLS (Simple Log Service).
 #[derive(Clone)]
@@ -37,19 +37,15 @@ pub enum SlsClientError {
 
 impl SlsClient {
     /// Put a log group to Aliyun SLS.
-    pub async fn put_log<const N_TAGS: usize, const N_KEY_PAIR: usize>(
-        &self,
-        metadata: &LogGroupMetadata<N_TAGS>,
-        logs: &[Log<N_KEY_PAIR>],
-    ) {
+    pub async fn put_log(&self, metadata: &LogGroupMetadata, logs: &[Log]) {
         self.try_put_log(metadata, logs).await.ok();
     }
 
     /// Try to put a log group to Aliyun SLS.
-    pub async fn try_put_log<const N_TAGS: usize, const N_KEY_PAIR: usize>(
+    pub async fn try_put_log(
         &self,
-        metadata: &LogGroupMetadata<N_TAGS>,
-        logs: &[Log<N_KEY_PAIR>],
+        metadata: &LogGroupMetadata,
+        logs: &[Log],
     ) -> Result<(), SlsClientError> {
         let fut = async move {
             return match self.put_log_inner(metadata, logs).await {
@@ -71,10 +67,10 @@ impl SlsClient {
         }
     }
 
-    async fn put_log_inner<const N_TAGS: usize, const N_KEY_PAIR: usize>(
+    async fn put_log_inner(
         &self,
-        metadata: &LogGroupMetadata<N_TAGS>,
-        logs: &[Log<N_KEY_PAIR>],
+        metadata: &LogGroupMetadata,
+        logs: &[Log],
     ) -> Result<(), SlsClientError> {
         let http_client = imp::HttpClient::get_or_try_init().await?;
 

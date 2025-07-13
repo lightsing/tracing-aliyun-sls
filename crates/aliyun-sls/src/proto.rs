@@ -1,30 +1,58 @@
 use compact_str::CompactString;
 use std::borrow::Borrow;
-use std::hash::Hash;
 use std::{io, io::Write};
 
-/// Error when reaching the static capacity limit of a log or log group metadata.
-#[derive(Debug, thiserror::Error)]
-#[error("reached capacity limit")]
-pub struct CapacityError(pub CompactString, pub CompactString);
+cfg_if::cfg_if! {
+    if #[cfg(all(feature = "inline-keypairs-16", not(feature = "inline-none")))] {
+        pub(crate) const N_INLINE_KEY_PAIR: usize = 16;
+    } else if #[cfg(all(feature = "inline-keypairs-8", not(feature = "inline-none")))] {
+        pub(crate) const N_INLINE_KEY_PAIR: usize = 8;
+    } else if #[cfg(all(feature = "inline-keypairs-4", not(feature = "inline-none")))] {
+        pub(crate) const N_INLINE_KEY_PAIR: usize = 4;
+    } else if #[cfg(all(feature = "inline-keypairs-2", not(feature = "inline-none")))] {
+        pub(crate) const N_INLINE_KEY_PAIR: usize = 2;
+    } else {
+        pub(crate) const N_INLINE_KEY_PAIR: usize = 0;
+    }
+}
+
+cfg_if::cfg_if! {
+    if #[cfg(all(feature = "inline-tags-16", not(feature = "inline-none")))] {
+        pub(crate) const N_INLINE_TAGS: usize = 16;
+    } else if #[cfg(all(feature = "inline-tags-8", not(feature = "inline-none")))] {
+        pub(crate) const N_INLINE_TAGS: usize = 8;
+    } else if #[cfg(all(feature = "inline-tags-4", not(feature = "inline-none")))] {
+        pub(crate) const N_INLINE_TAGS: usize = 4;
+    } else if #[cfg(all(feature = "inline-tags-2", not(feature = "inline-none")))] {
+        pub(crate) const N_INLINE_TAGS: usize = 2;
+    } else {
+        pub(crate) const N_INLINE_TAGS: usize = 0;
+    }
+}
+
+type Map<const N: usize> = litemap::LiteMap<
+    CompactString,
+    CompactString,
+    smallvec::SmallVec<(CompactString, CompactString), N>,
+>;
 
 /// Log entry with a timestamp and fixed capacity key-value pairs.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Log<const N_KEY_PAIR: usize = 8> {
+pub struct Log {
     /// UNIX Time Format
     timestamp: u32,
     /// for time nano part
     subsec_nanosecond: Option<u32>,
     /// log contents key value pairs
-    contents: heapless::FnvIndexMap<CompactString, CompactString, N_KEY_PAIR>,
+    contents: Map<N_INLINE_KEY_PAIR>,
 }
 
 /// Metadata for a group of logs, including topic, source, and fixed capacity key-value tags.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LogGroupMetadata<const N_TAGS: usize = 8> {
+pub struct LogGroupMetadata {
     topic: Option<CompactString>,
     source: Option<CompactString>,
-    log_tags: heapless::FnvIndexMap<CompactString, CompactString, N_TAGS>,
+    log_tags: Map<N_INLINE_TAGS>,
 }
 
 impl Default for Log {
@@ -39,14 +67,14 @@ impl Default for LogGroupMetadata {
     }
 }
 
-impl<const N_KEY_PAIR: usize> Log<N_KEY_PAIR> {
+impl Log {
     /// Create a new log with the current timestamp.
     pub fn now() -> Self {
         let now = jiff::Timestamp::now();
         Log {
             timestamp: now.as_second() as u32,
             subsec_nanosecond: Some(now.subsec_nanosecond() as u32),
-            contents: heapless::FnvIndexMap::new(),
+            contents: Map::new(),
         }
     }
 
@@ -55,7 +83,7 @@ impl<const N_KEY_PAIR: usize> Log<N_KEY_PAIR> {
         Log {
             timestamp,
             subsec_nanosecond,
-            contents: heapless::FnvIndexMap::new(),
+            contents: Map::new(),
         }
     }
 
@@ -73,39 +101,27 @@ impl<const N_KEY_PAIR: usize> Log<N_KEY_PAIR> {
 
     /// Add a key-value pair to the log contents.
     pub fn with(mut self, key: impl Into<CompactString>, value: impl Into<CompactString>) -> Self {
-        self.try_with(key, value).ok();
+        self.contents.insert(key.into(), value.into());
         self
-    }
-
-    /// Add a key-value pair to the log contents.
-    pub fn try_with(
-        &mut self,
-        key: impl Into<CompactString>,
-        value: impl Into<CompactString>,
-    ) -> Result<&mut Self, CapacityError> {
-        self.contents
-            .insert(key.into(), value.into())
-            .map_err(|(k, v)| CapacityError(k, v))?;
-        Ok(self)
     }
 
     /// Remove a key-value pair from the log contents.
     pub fn remove<Q>(&mut self, key: &Q)
     where
         CompactString: Borrow<Q>,
-        Q: ?Sized + Hash + Eq,
+        Q: ?Sized + Ord,
     {
         self.contents.remove(key);
     }
 }
 
-impl<const N_TAGS: usize> LogGroupMetadata<N_TAGS> {
+impl LogGroupMetadata {
     /// Create a new log group metadata with default values.
     pub fn new() -> Self {
         LogGroupMetadata {
             topic: None,
             source: None,
-            log_tags: heapless::FnvIndexMap::new(),
+            log_tags: Map::new(),
         }
     }
 
@@ -127,39 +143,27 @@ impl<const N_TAGS: usize> LogGroupMetadata<N_TAGS> {
         key: impl Into<CompactString>,
         value: impl Into<CompactString>,
     ) -> Self {
-        self.try_with_tag(key, value).ok();
+        self.log_tags.insert(key.into(), value.into());
         self
-    }
-
-    /// Add a tag to the log group metadata.
-    pub fn try_with_tag(
-        &mut self,
-        key: impl Into<CompactString>,
-        value: impl Into<CompactString>,
-    ) -> Result<&mut Self, CapacityError> {
-        self.log_tags
-            .insert(key.into(), value.into())
-            .map_err(|(k, v)| CapacityError(k, v))?;
-        Ok(self)
     }
 
     /// Remove a tag from the log group metadata.
     pub fn remove_tag<Q>(&mut self, key: &Q)
     where
         CompactString: Borrow<Q>,
-        Q: ?Sized + Hash + Eq,
+        Q: ?Sized + Ord,
     {
         self.log_tags.remove(key);
     }
 }
 
 // Manual implementation for faster encoding
-pub(crate) fn encode_log_group<const N_TAGS: usize, const N_KEY_PAIR: usize>(
-    writer: &mut impl Write,
-    metadata: &LogGroupMetadata<N_TAGS>,
-    logs: &[Log<N_KEY_PAIR>],
+pub(crate) fn encode_log_group<W: Write>(
+    writer: &mut W,
+    metadata: &LogGroupMetadata,
+    logs: &[Log],
 ) -> io::Result<()> {
-    for log in logs {
+    for log in logs.as_ref() {
         encode_message(1u32, log, writer)?;
     }
     if let Some(ref value) = metadata.topic {
@@ -168,17 +172,15 @@ pub(crate) fn encode_log_group<const N_TAGS: usize, const N_KEY_PAIR: usize>(
     if let Some(ref value) = metadata.source {
         encode_str(4u32, value, writer)?;
     }
-    for tag in &metadata.log_tags {
+    for tag in metadata.log_tags.iter() {
         encode_message(6u32, &tag, writer)?;
     }
 
     Ok(())
 }
 
-pub(crate) fn calc_log_group_encoded_len<const N_TAGS: usize, const N_KEY_PAIR: usize>(
-    metadata: &LogGroupMetadata<N_TAGS>,
-    logs: &[Log<N_KEY_PAIR>],
-) -> usize {
+pub(crate) fn calc_log_group_encoded_len(metadata: &LogGroupMetadata, logs: &[Log]) -> usize {
+    let logs = logs.as_ref();
     encoded_len_repeated(1u32, logs.iter(), logs.len())
         + metadata
             .topic
@@ -192,14 +194,14 @@ pub(crate) fn calc_log_group_encoded_len<const N_TAGS: usize, const N_KEY_PAIR: 
 }
 
 trait Message {
-    fn encode(&self, writer: &mut impl Write) -> io::Result<()>;
+    fn encode_into_vec<W: Write>(&self, writer: &mut W) -> io::Result<()>;
     fn encoded_len(&self) -> usize;
 }
 
 impl<T: Message> Message for &T {
     #[inline]
-    fn encode(&self, writer: &mut impl Write) -> io::Result<()> {
-        T::encode(self, writer)
+    fn encode_into_vec<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        T::encode_into_vec(self, writer)
     }
 
     #[inline]
@@ -210,7 +212,7 @@ impl<T: Message> Message for &T {
 
 impl<S: AsRef<str>> Message for (S, S) {
     #[inline]
-    fn encode(&self, writer: &mut impl Write) -> io::Result<()> {
+    fn encode_into_vec<W: Write>(&self, writer: &mut W) -> io::Result<()> {
         encode_str(1u32, self.0.as_ref(), writer)?;
         encode_str(2u32, self.1.as_ref(), writer)
     }
@@ -221,15 +223,15 @@ impl<S: AsRef<str>> Message for (S, S) {
     }
 }
 
-impl<const N_KEY_PAIR: usize> Message for Log<N_KEY_PAIR> {
+impl Message for Log {
     #[inline]
-    fn encode(&self, writer: &mut impl Write) -> io::Result<()> {
-        encode_varint_field(1u32, self.timestamp as u64, writer)?;
+    fn encode_into_vec<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        encode_varint_field(1u32, self.timestamp as u64, writer).expect("infallible");
         for msg in &self.contents {
-            encode_message(2u32, &msg, writer)?;
+            encode_message(2u32, &msg, writer).expect("infallible");
         }
         if let Some(value) = self.subsec_nanosecond {
-            encode_fixed32(4u32, value, writer)?;
+            encode_fixed32(4u32, value, writer).expect("infallible");
         }
         Ok(())
     }
@@ -260,7 +262,7 @@ enum WireType {
 }
 
 #[inline]
-fn encode_varint(mut value: u64, writer: &mut impl Write) -> io::Result<()> {
+fn encode_varint<W: Write>(mut value: u64, writer: &mut W) -> io::Result<()> {
     loop {
         if value < 0x80 {
             writer.write_all(&[value as u8])?;
@@ -274,33 +276,33 @@ fn encode_varint(mut value: u64, writer: &mut impl Write) -> io::Result<()> {
 }
 
 #[inline]
-fn encode_key(tag: u32, wire_type: WireType, writer: &mut impl Write) -> io::Result<()> {
+fn encode_key<W: Write>(tag: u32, wire_type: WireType, writer: &mut W) -> io::Result<()> {
     let key = (tag << 3) | wire_type as u32;
     encode_varint(u64::from(key), writer)
 }
 
 #[inline]
-fn encode_varint_field(tag: u32, value: u64, writer: &mut impl Write) -> io::Result<()> {
+fn encode_varint_field<W: Write>(tag: u32, value: u64, writer: &mut W) -> io::Result<()> {
     encode_key(tag, WireType::Varint, writer)?;
     encode_varint(value, writer)
 }
 
 #[inline]
-fn encode_fixed32(tag: u32, value: u32, writer: &mut impl Write) -> io::Result<()> {
+fn encode_fixed32<W: Write>(tag: u32, value: u32, writer: &mut W) -> io::Result<()> {
     encode_key(tag, WireType::ThirtyTwoBit, writer)?;
     writer.write_all(&value.to_le_bytes())?;
     Ok(())
 }
 
 #[inline]
-fn encode_message(tag: u32, msg: &impl Message, writer: &mut impl Write) -> io::Result<()> {
+fn encode_message<W: Write>(tag: u32, msg: &impl Message, writer: &mut W) -> io::Result<()> {
     encode_key(tag, WireType::LengthDelimited, writer)?;
     encode_varint(msg.encoded_len() as u64, writer)?;
-    msg.encode(writer)
+    msg.encode_into_vec(writer)
 }
 
 #[inline]
-fn encode_str(tag: u32, value: impl AsRef<str>, writer: &mut impl Write) -> io::Result<()> {
+fn encode_str<W: Write>(tag: u32, value: impl AsRef<str>, writer: &mut W) -> io::Result<()> {
     let value = value.as_ref();
     encode_key(tag, WireType::LengthDelimited, writer)?;
     encode_varint(value.len() as u64, writer)?;
@@ -347,4 +349,18 @@ fn encoded_varint_field_len(tag: u32, value: u64) -> usize {
 #[inline]
 fn encoded_fixed32_len(tag: u32) -> usize {
     key_len(tag) + 4
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_size() {
+        println!("size_of::<Log>() = {}", size_of::<Log>());
+        println!(
+            "size_of::<LogGroupMetadata>() = {}",
+            size_of::<LogGroupMetadata>()
+        );
+    }
 }

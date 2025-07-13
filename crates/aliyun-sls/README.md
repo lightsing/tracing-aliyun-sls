@@ -27,6 +27,37 @@ Client for [Aliyun SLS](https://help.aliyun.com/zh/sls/) (Aliyun Log Service).
 - `lz4`: enable lz4 compression for logs.
 - `deflate`: enable deflate compression for logs.
 
+### Inline Optimizations
+
+Inline features can control how many key-pairs are inlined before spill over to the heap.
+If multiple inline features are enabled, the maximum number of inlined key-pairs will be used.
+
+By default, the client will inline up to 8 key-pairs for log messages and 8 key-pairs for log group metadata tags.
+ 
+If `inline-none` feature is enabled, other inline features will be ignored, and no key-pairs will be inlined.
+
+For log message key-pairs, use:
+- `inline-keypairs-2`
+- `inline-keypairs-4`
+- `inline-keypairs-8` (default)
+- `inline-keypairs-16`
+
+For log group metadata tags, use:
+- `inline-tags-2`
+- `inline-tags-4`
+- `inline-tags-8` (default)
+- `inline-tags-16`
+
+## Unstable Features
+
+> Those features are unstable and requires a nightly build of the Rust toolchain.
+
+- `may_dangle`: This feature makes the Rust compiler less strict about use of vectors that
+  contain borrowed references. For details, see the
+  [Rustonomicon](https://doc.rust-lang.org/1.42.0/nomicon/dropck.html#an-escape-hatch).
+
+  Tracking issue: [rust-lang/rust#34761](https://github.com/rust-lang/rust/issues/31844)
+
 [`reqwest`]: https://docs.rs/reqwest
 [`rustls`]: https://docs.rs/rustls
 [`nyquest`]: https://docs.rs/nyquest

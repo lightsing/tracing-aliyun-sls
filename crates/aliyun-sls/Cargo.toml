@@ -17,12 +17,14 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 async-lock.workspace = true
 base64.workspace = true
+cfg-if.workspace = true
 compact_str.workspace = true
 heapless.workspace = true
 hex = { workspace = true, features = ["alloc"] }
 hmac.workspace = true
 http = { workspace = true, default-features = false, optional = true }
 jiff = { workspace = true, features = ["std"] }
+litemap.workspace = true
 lz4_flex = { workspace = true, optional = true }
 md5.workspace = true
 miniz_oxide = { workspace = true, optional = true }
@@ -30,6 +32,7 @@ nyquest = { workspace = true, optional = true }
 nyquest-interface = { workspace = true, optional = true }
 reqwest = { workspace = true, default-features = false, optional = true }
 sha1.workspace = true
+smallvec = { workspace = true, features = ["litemap"] }
 thiserror.workspace = true
 tracing.workspace = true
 
@@ -40,7 +43,11 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 
 
 [features]
-default = ["reqwest-default-tls"]
+default = ["reqwest-default-tls", "inline-keypairs-8", "inline-tags-8"]
+
+nightly = [
+  "smallvec/may_dangle",
+]
 
 deflate = ["dep:miniz_oxide"]
 lz4 = ["dep:lz4_flex"]
@@ -56,3 +63,15 @@ reqwest-rustls = [
 ]
 
 nyquest = ["dep:nyquest", "dep:nyquest-interface", "nyquest/async"]
+
+inline-none = []
+
+inline-keypairs-16 = []
+inline-keypairs-2 = []
+inline-keypairs-4 = []
+inline-keypairs-8 = []
+
+inline-tags-16 = []
+inline-tags-2 = []
+inline-tags-4 = []
+inline-tags-8 = []
