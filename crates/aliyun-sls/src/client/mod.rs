@@ -129,8 +129,9 @@ mod test {
 
         let client = builder.build().unwrap();
 
-        let metadata = LogGroupMetadata::default().with_tag("static", "test");
-        let logs = vec![Log::default().with("message", "hello world")];
+        let metadata =
+            LogGroupMetadata::default().with_tag(MayStaticKey::from_static("static"), "test");
+        let logs = vec![Log::default().with(MayStaticKey::from_static("message"), "hello world")];
 
         client.put_log(&metadata, &logs).await;
     }

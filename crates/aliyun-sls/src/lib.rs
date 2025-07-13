@@ -71,7 +71,7 @@ mod client;
 mod proto;
 
 pub use client::{SlsClient, SlsClientBuilder, SlsClientBuilderError, SlsClientError};
-pub use proto::{Log, LogGroupMetadata};
+pub use proto::{Log, LogGroupMetadata, MayStaticKey};
 
 /// Inline constants
 pub mod inline {

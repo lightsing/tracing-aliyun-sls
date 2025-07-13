@@ -1,4 +1,6 @@
 use compact_str::CompactString;
+use std::hash::Hash;
+use std::sync::Arc;
 use std::{borrow::Borrow, io, io::Write};
 
 cfg_if::cfg_if! {
@@ -29,11 +31,16 @@ cfg_if::cfg_if! {
     }
 }
 
-type Map<const N: usize> = litemap::LiteMap<
-    CompactString,
-    CompactString,
-    smallvec::SmallVec<(CompactString, CompactString), N>,
->;
+type Map<K, V, const N: usize> = litemap::LiteMap<K, V, smallvec::SmallVec<(K, V), N>>;
+
+/// MayStaticKey is a key that can be either a static string or a shared string.
+#[derive(Debug, Clone, Ord, Eq)]
+pub enum MayStaticKey {
+    /// Static string, which is a `&'static str`.
+    Static(&'static str),
+    /// Shared string, which is an `Arc<CompactString>`.
+    Shared(Arc<CompactString>),
+}
 
 /// Log entry with a timestamp and fixed capacity key-value pairs.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,7 +50,7 @@ pub struct Log {
     /// for time nano part
     subsec_nanosecond: Option<u32>,
     /// log contents key value pairs
-    contents: Map<N_INLINE_KEY_PAIR>,
+    contents: Map<MayStaticKey, CompactString, N_INLINE_KEY_PAIR>,
 }
 
 /// Metadata for a group of logs, including topic, source, and fixed capacity key-value tags.
@@ -51,7 +58,52 @@ pub struct Log {
 pub struct LogGroupMetadata {
     topic: CompactString,
     source: CompactString,
-    log_tags: Map<N_INLINE_TAGS>,
+    log_tags: Map<MayStaticKey, CompactString, N_INLINE_TAGS>,
+}
+
+impl MayStaticKey {
+    /// Create a new `MayStaticKey` from a string.
+    pub fn new(s: impl Into<CompactString>) -> Self {
+        MayStaticKey::Shared(Arc::new(s.into()))
+    }
+
+    /// Create a new `MayStaticKey` from a static string slice.
+    pub const fn from_static(s: &'static str) -> Self {
+        MayStaticKey::Static(s)
+    }
+}
+
+impl AsRef<str> for MayStaticKey {
+    fn as_ref(&self) -> &str {
+        match self {
+            MayStaticKey::Static(s) => s,
+            MayStaticKey::Shared(s) => s.as_ref(),
+        }
+    }
+}
+
+impl<S: AsRef<str>> PartialEq<S> for MayStaticKey {
+    fn eq(&self, other: &S) -> bool {
+        self.as_ref() == other.as_ref()
+    }
+}
+
+impl<S: AsRef<str>> PartialOrd<S> for MayStaticKey {
+    fn partial_cmp(&self, other: &S) -> Option<std::cmp::Ordering> {
+        self.as_ref().partial_cmp(other.as_ref())
+    }
+}
+
+impl Borrow<str> for MayStaticKey {
+    fn borrow(&self) -> &str {
+        self.as_ref()
+    }
+}
+
+impl Hash for MayStaticKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.as_ref().hash(state);
+    }
 }
 
 impl Default for Log {
@@ -99,18 +151,21 @@ impl Log {
     }
 
     /// Add a key-value pair to the log contents.
-    pub fn with(mut self, key: impl Into<CompactString>, value: impl Into<CompactString>) -> Self {
-        self.contents.insert(key.into(), value.into());
+    pub fn with(mut self, key: MayStaticKey, value: impl Into<CompactString>) -> Self {
+        self.contents.insert(key, value.into());
+        self
+    }
+
+    /// Add a key-value pair to the log contents.
+    pub fn insert(&mut self, key: MayStaticKey, value: impl Into<CompactString>) -> &mut Self {
+        self.contents.insert(key, value.into());
         self
     }
 
     /// Remove a key-value pair from the log contents.
-    pub fn remove<Q>(&mut self, key: &Q)
-    where
-        CompactString: Borrow<Q>,
-        Q: ?Sized + Ord,
-    {
+    pub fn remove<Q>(&mut self, key: &str) -> &mut Self {
         self.contents.remove(key);
+        self
     }
 }
 
@@ -137,22 +192,21 @@ impl LogGroupMetadata {
     }
 
     /// Add a tag to the log group metadata.
-    pub fn with_tag(
-        mut self,
-        key: impl Into<CompactString>,
-        value: impl Into<CompactString>,
-    ) -> Self {
-        self.log_tags.insert(key.into(), value.into());
+    pub fn with_tag(mut self, key: MayStaticKey, value: impl Into<CompactString>) -> Self {
+        self.log_tags.insert(key, value.into());
+        self
+    }
+
+    /// Add a tag to the log group metadata.
+    pub fn add_tag(&mut self, key: MayStaticKey, value: impl Into<CompactString>) -> &mut Self {
+        self.log_tags.insert(key, value.into());
         self
     }
 
     /// Remove a tag from the log group metadata.
-    pub fn remove_tag<Q>(&mut self, key: &Q)
-    where
-        CompactString: Borrow<Q>,
-        Q: ?Sized + Ord,
-    {
+    pub fn remove_tag<Q>(&mut self, key: &str) -> &mut Self {
         self.log_tags.remove(key);
+        self
     }
 }
 
@@ -211,7 +265,7 @@ impl<T: Message> Message for &T {
     }
 }
 
-impl<S: AsRef<str>> Message for (S, S) {
+impl<K: AsRef<str>, V: AsRef<str>> Message for (K, V) {
     #[inline]
     fn encode_into_vec<W: Write>(&self, writer: &mut W) -> io::Result<()> {
         encode_str(1u32, self.0.as_ref(), writer)?;
