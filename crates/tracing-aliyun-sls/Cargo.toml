@@ -1,0 +1,38 @@
+[package]
+authors.workspace = true
+categories.workspace = true
+description = "A tracing layer for aliyun sls"
+edition.workspace = true
+homepage = "https://github.com/lightsing/tracing-aliyun-sls/tree/master/crates/tracing-aliyun-sls"
+keywords = ["tracing", "aliyun", "sls"]
+license.workspace = true
+name = "tracing-aliyun-sls"
+repository.workspace = true
+rust-version.workspace = true
+version = "0.3.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+aliyun-sls = { path = "../aliyun-sls", default-features = false }
+async-channel = { workspace = true, features = ["std"] }
+bitflags.workspace = true
+futures-util = { workspace = true, default-features = false, features = ["async-await-macro", "std"] }
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["fmt"] }
+
+[features]
+default = ["reqwest-default-tls"]
+
+# re-export aliyun-sls features
+deflate = ["aliyun-sls/deflate"]
+lz4 = ["aliyun-sls/lz4"]
+
+reqwest = ["aliyun-sls/reqwest"]
+reqwest-default-tls = ["aliyun-sls/reqwest-default-tls"]
+reqwest-rustls = ["aliyun-sls/reqwest-rustls"]
+
+nyquest = ["aliyun-sls/nyquest"]
