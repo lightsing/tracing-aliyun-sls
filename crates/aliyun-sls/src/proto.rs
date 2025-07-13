@@ -49,8 +49,8 @@ pub struct Log {
 /// Metadata for a group of logs, including topic, source, and fixed capacity key-value tags.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LogGroupMetadata {
-    topic: Option<CompactString>,
-    source: Option<CompactString>,
+    topic: CompactString,
+    source: CompactString,
     log_tags: Map<N_INLINE_TAGS>,
 }
 
@@ -118,21 +118,21 @@ impl LogGroupMetadata {
     /// Create a new log group metadata with default values.
     pub fn new() -> Self {
         LogGroupMetadata {
-            topic: None,
-            source: None,
+            topic: CompactString::const_new(""),
+            source: CompactString::const_new(""),
             log_tags: Map::new(),
         }
     }
 
     /// Set the topic for the log group metadata.
     pub fn with_topic(mut self, topic: impl Into<CompactString>) -> Self {
-        self.topic = Some(topic.into());
+        self.topic = topic.into();
         self
     }
 
     /// Set the source for the log group metadata.
     pub fn with_source(mut self, source: impl Into<CompactString>) -> Self {
-        self.source = Some(source.into());
+        self.source = source.into();
         self
     }
 
@@ -165,11 +165,11 @@ pub(crate) fn encode_log_group<W: Write>(
     for log in logs.as_ref() {
         encode_message(1u32, log, writer)?;
     }
-    if let Some(ref value) = metadata.topic {
-        encode_str(3u32, value, writer)?;
+    if !metadata.topic.is_empty() {
+        encode_str(3u32, &metadata.topic, writer)?;
     }
-    if let Some(ref value) = metadata.source {
-        encode_str(4u32, value, writer)?;
+    if !metadata.source.is_empty() {
+        encode_str(4u32, &metadata.source, writer)?;
     }
     for tag in metadata.log_tags.iter() {
         encode_message(6u32, &tag, writer)?;
@@ -183,12 +183,14 @@ pub(crate) fn calc_log_group_encoded_len(metadata: &LogGroupMetadata, logs: &[Lo
     encoded_len_repeated(1u32, logs.iter(), logs.len())
         + metadata
             .topic
-            .as_ref()
-            .map_or(0, |value| encoded_str_len(3u32, value))
+            .is_empty()
+            .then(|| encoded_str_len(3u32, &metadata.topic))
+            .unwrap_or(0)
         + metadata
             .source
-            .as_ref()
-            .map_or(0, |value| encoded_str_len(4u32, value))
+            .is_empty()
+            .then(|| encoded_str_len(4u32, &metadata.source))
+            .unwrap_or(0)
         + encoded_len_repeated(6u32, metadata.log_tags.iter(), metadata.log_tags.len())
 }
 
