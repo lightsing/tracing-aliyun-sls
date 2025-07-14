@@ -69,6 +69,9 @@ compile_error!("`lz4` and `deflate` cannot be enabled at the same time");
 
 mod client;
 mod proto;
+#[cfg(feature = "reporter")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reporter")))]
+pub mod reporter;
 
 pub use client::{SlsClient, SlsClientBuilder, SlsClientBuilderError, SlsClientError};
 pub use proto::{Log, LogGroupMetadata, MayStaticKey};
@@ -90,4 +93,7 @@ fn init() {
         .with_env_filter(EnvFilter::from_default_env())
         .with_test_writer()
         .init();
+
+    // Register the nyquest backend
+    nyquest_preset::register();
 }

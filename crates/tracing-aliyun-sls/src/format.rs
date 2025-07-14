@@ -1,10 +1,10 @@
+use crate::time::SystemTime;
 use bitflags::bitflags;
 use std::{fmt, fmt::Display};
-use tracing_subscriber::fmt::time::SystemTime;
 
+/// Formatter for logging tracing events.
 pub struct Format<T = SystemTime> {
     pub(crate) timer: T,
-    pub(crate) display_timestamp: bool,
     pub(crate) display_target: bool,
     pub(crate) display_level: bool,
     pub(crate) display_thread_id: bool,
@@ -44,7 +44,6 @@ impl Default for Format<SystemTime> {
     fn default() -> Self {
         Format {
             timer: SystemTime,
-            display_timestamp: true,
             display_target: true,
             display_level: true,
             display_thread_id: false,
@@ -66,7 +65,6 @@ impl<T> Format<T> {
         Format {
             timer,
             display_target: self.display_target,
-            display_timestamp: self.display_timestamp,
             display_level: self.display_level,
             display_thread_id: self.display_thread_id,
             display_thread_name: self.display_thread_name,
@@ -78,7 +76,6 @@ impl<T> Format<T> {
     /// Do not emit timestamps with log messages.
     pub fn without_time(self) -> Format<()> {
         Format {
-            display_timestamp: false,
             ..self.with_timer(())
         }
     }

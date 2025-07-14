@@ -150,6 +150,18 @@ impl Log {
         self
     }
 
+    /// Modify the timestamp of the log.
+    pub fn modify_timestamp(&mut self, timestamp: u32) -> &mut Self {
+        self.timestamp = timestamp;
+        self
+    }
+
+    /// Modify the subsecond nanosecond of the log.
+    pub fn modify_subsec_nanosecond(&mut self, subsec_nanosecond: u32) -> &mut Self {
+        self.subsec_nanosecond = Some(subsec_nanosecond);
+        self
+    }
+
     /// Add a key-value pair to the log contents.
     pub fn with(mut self, key: MayStaticKey, value: impl Into<CompactString>) -> Self {
         self.contents.insert(key, value.into());
@@ -216,7 +228,7 @@ pub(crate) fn encode_log_group<W: Write>(
     metadata: &LogGroupMetadata,
     logs: &[Log],
 ) -> io::Result<()> {
-    for log in logs.as_ref() {
+    for log in logs {
         encode_message(1u32, log, writer)?;
     }
     if !metadata.topic.is_empty() {
@@ -233,7 +245,6 @@ pub(crate) fn encode_log_group<W: Write>(
 }
 
 pub(crate) fn calc_log_group_encoded_len(metadata: &LogGroupMetadata, logs: &[Log]) -> usize {
-    let logs = logs.as_ref();
     encoded_len_repeated(1u32, logs.iter(), logs.len())
         + metadata
             .topic

@@ -1,4 +1,5 @@
-use aliyun_sls::{Log, LogGroupMetadata, SlsClient};
+//! A reporter for batching and sending logs to the SLS service.
+use crate::{Log, LogGroupMetadata, SlsClient};
 use async_channel::{Receiver, Sender};
 use futures_util::{FutureExt, join, select};
 use std::{
@@ -9,34 +10,29 @@ use std::{
 };
 
 type Item = (Arc<LogGroupMetadata>, Log);
-type Producer = Sender<Item>;
+pub(crate) type Producer = Sender<Item>;
 type Consumer = Receiver<Item>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    /// Other uncovered errors.
-    #[error(transparent)]
-    Other(#[from] Box<dyn std::error::Error + Send + 'static>),
-}
-
-type Result<T> = std::result::Result<T, Error>;
 
 const LOG_VEC_DEFAULT_CAPACITY: usize = 1024;
 const VEC_POOL_DEFAULT_CAPACITY: usize = 1024;
 const LOG_GROUP_DEFAULT_CAPACITY: usize = 1024;
 
-pub trait DrainTimer: 'static {
+/// Trait for creating a drain timer future.
+pub trait DrainTimer: Send + Sync + 'static {
     /// Create a drain timer future.
     fn drain_timer(&self) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>>;
 }
 
+/// A reporter for batching and sending logs to the SLS service.
+#[derive(Clone)]
 pub struct Reporter {
     state: Arc<State>,
-    producer: Arc<Producer>,
+    pub(crate) producer: Arc<Producer>,
     consumer: Arc<Mutex<Option<Consumer>>>,
     client: SlsClient,
 }
 
+/// Reporting is a handle to the reporting process, allowing configuration and starting the reporting.
 pub struct Reporting {
     state: Arc<State>,
     consumer: Consumer,
@@ -67,6 +63,7 @@ struct State {
 }
 
 impl Reporter {
+    /// Create a new reporter with the given SLS client.
     pub fn from_client(client: SlsClient) -> Self {
         let (producer, consumer) = async_channel::unbounded();
         Self {
@@ -77,6 +74,9 @@ impl Reporter {
         }
     }
 
+    /// Create the reporting future with a given drain timer.
+    ///
+    /// If the reporter is already in reporting state, it returns `None`.
     pub async fn reporting(&self, drain_timer: impl DrainTimer) -> Option<Reporting> {
         if self.state.set_reporting() {
             return None;
@@ -98,7 +98,8 @@ impl Reporter {
         })
     }
 
-    fn report(&self, metadata: Arc<LogGroupMetadata>, log: Log) {
+    /// Report a log to the reporter.
+    pub fn report(&self, metadata: Arc<LogGroupMetadata>, log: Log) {
         if !self.state.is_closing() {
             if let Err(e) = self.producer.send_blocking((metadata, log)) {
                 tracing::error!("reporter send error: {e}");
@@ -119,21 +120,31 @@ impl Reporting {
         self
     }
 
+    /// Set the initial batching log vector capacity.
+    ///
+    /// Default is `1024`.
     pub fn with_log_vec_capacity(mut self, capacity: usize) -> Self {
         self.log_vec_capacity = capacity;
         self
     }
 
+    /// Set the initial log group capacity.
+    ///
+    /// Default is `1024`.
     pub fn with_log_group_capacity(mut self, capacity: usize) -> Self {
         self.log_group_capacity = capacity;
         self
     }
 
+    /// Set the initial internal vector pool capacity.
+    ///
+    /// The vector pool is used to reuse log vectors to reduce allocations.
     pub fn with_vec_pool_capacity(mut self, capacity: usize) -> Self {
         self.vec_pool_capacity = capacity;
         self
     }
 
+    /// Start the reporting process.
     pub async fn start(self) {
         let (shutdown_tx, shutdown_rx) = async_channel::bounded::<()>(1);
 
@@ -209,7 +220,7 @@ impl LogConsumer {
 
     async fn drain(&mut self) {
         for (meta, mut log) in self.log_group.drain() {
-            self.client.put_log(&*meta, &log).await;
+            self.client.put_log(&meta, &log).await;
             log.clear();
             log.shrink_to(self.log_vec_capacity);
             self.vec_pool.push(log);
@@ -238,11 +249,12 @@ impl State {
     }
 }
 
-impl<F> DrainTimer for F
+impl<F, Fut> DrainTimer for F
 where
-    F: Fn() -> Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>> + 'static,
+    F: Fn() -> Fut + Send + Sync + 'static,
+    Fut: Future<Output = ()> + Send + Sync + 'static,
 {
     fn drain_timer(&self) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
-        self()
+        Box::pin(self())
     }
 }

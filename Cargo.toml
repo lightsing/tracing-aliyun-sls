@@ -22,7 +22,7 @@ bitflags = "2.9"
 cfg-if = "1.0"
 compact_str = { version = "0.9", default-features = false }
 ctor = "0.4"
-heapless = "0.8"
+futures-util = { version = "0.3", default-features = false }
 hex = { version = "0.4", default-features = false }
 hmac = "0.12"
 http = { version = "1.1", default-features = false }
@@ -33,6 +33,7 @@ md5 = { version = "0.8", default-features = false }
 miniz_oxide = { version = "0.8", default-features = false }
 nyquest = { git = "https://github.com/bdbai/nyquest" }
 nyquest-interface = { git = "https://github.com/bdbai/nyquest" }
+nyquest-preset = { git = "https://github.com/bdbai/nyquest" }
 reqwest = { version = "0.12", default-features = false }
 sha1 = { version = "0.10", default-features = false }
 smallvec = { git = "https://github.com/lightsing/rust-smallvec.git", branch = "feat/litemap" }

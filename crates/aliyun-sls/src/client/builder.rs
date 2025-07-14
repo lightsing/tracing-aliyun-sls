@@ -108,7 +108,7 @@ impl<'a> SlsClientBuilder<'a> {
 
     /// Set the deflate compression level for the SLS client.
     #[cfg(feature = "deflate")]
-    #[cfg_attr(docrs, doc(cfg(feature = "deflate")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "deflate")))]
     pub fn compression_level(mut self, level: u8) -> Self {
         self.compression_level = level.clamp(1, 10);
         self

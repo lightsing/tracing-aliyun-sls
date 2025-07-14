@@ -1,26 +1,23 @@
 use crate::format::Format;
+use crate::time::RecordTime;
 use aliyun_sls::{Log, MayStaticKey};
-use compact_str::{CompactString, ToCompactString, format_compact};
-use std::fmt;
+use compact_str::{ToCompactString, format_compact};
 use tracing::{Event, Subscriber, field::Field};
-use tracing_subscriber::{
-    fmt::{format::Writer, time::FormatTime},
-    layer::Context,
-    registry::LookupSpan,
-};
+use tracing_subscriber::{layer::Context, registry::LookupSpan};
 
+/// A trait for recording [`Event`]s in a given context to a log.
 pub trait RecordEvent<S>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
     /// Write a log message for `Event` in `Context` to the given [`Log`].
-    fn record_event<T: FormatTime>(
+    fn record_event<T: RecordTime>(
         &self,
         event: &Event<'_>,
         ctx: &Context<'_, S>,
         format: &Format<T>,
         log: &mut Log,
-    ) -> fmt::Result;
+    );
 }
 
 /// The default [`RecordEvent`] implementation to record [`Event`]
@@ -48,13 +45,13 @@ impl<S> RecordEvent<S> for DefaultEvent
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
-    fn record_event<T: FormatTime>(
+    fn record_event<T: RecordTime>(
         &self,
         event: &Event<'_>,
         _ctx: &Context<'_, S>,
         format: &Format<T>,
         log: &mut Log,
-    ) -> fmt::Result {
+    ) {
         if format.display_level {
             log.insert(
                 MayStaticKey::from_static("level"),
@@ -62,11 +59,7 @@ where
             );
         }
 
-        if format.display_timestamp {
-            let mut timestamp = CompactString::const_new("");
-            format.timer.format_time(&mut Writer::new(&mut timestamp))?;
-            log.insert(MayStaticKey::from_static("timestamp"), timestamp);
-        }
+        format.timer.record_time(log);
 
         let current_thread = std::thread::current();
         if format.display_thread_name {
@@ -105,13 +98,11 @@ where
             }
         }
 
-        event.record(&mut |field: &Field, value: &dyn fmt::Debug| {
+        event.record(&mut |field: &Field, value: &dyn std::fmt::Debug| {
             log.insert(
                 MayStaticKey::from_static(field.name()),
                 format_compact!("{value:?}"),
             );
         });
-
-        Ok(())
     }
 }

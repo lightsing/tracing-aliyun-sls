@@ -31,7 +31,7 @@ impl HttpClient {
         Ok(Self {
             inner: nyquest::ClientBuilder::default()
                 .user_agent(headers::USER_AGENT_VALUE)
-                .with_header(headers::CONTENT_TYPE, headers::DEFAULT_CONTENT_TYPE)
+                // .with_header(headers::CONTENT_TYPE, headers::DEFAULT_CONTENT_TYPE)
                 .with_header(headers::LOG_API_VERSION, headers::API_VERSION)
                 .with_header(headers::LOG_SIGNATURE_METHOD, headers::SIGNATURE_METHOD)
                 .build_async()
@@ -73,12 +73,19 @@ impl RequestBuilder {
     }
 
     pub async fn send(self) -> Result<Response> {
-        let res = self
-            .client
-            .inner
-            .request(self.inner)
-            .await?
-            .with_successful_status()?;
+        let res = self.client.inner.request(self.inner).await?;
         Ok(Response { inner: res })
+    }
+}
+
+impl StatusCode {
+    pub(crate) fn is_success(&self) -> bool {
+        self.inner.is_successful()
+    }
+}
+
+impl From<StatusCode> for u16 {
+    fn from(status: StatusCode) -> u16 {
+        status.inner.code()
     }
 }

@@ -32,12 +32,25 @@ struct SlsClientInner {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum SlsClientError {
-    /// Http error.
-    #[error("http error: {0}")]
-    Http(#[from] imp::Error),
+    /// Non-successful HTTP response from the SLS service.
+    #[error("http error [{status}] {message}")]
+    Http {
+        /// HTTP status code.
+        status: u16,
+        /// Error message from the response.
+        message: Box<str>,
+    },
+    /// Other HTTP client error.
+    #[error("other http client error: {0}")]
+    Imp(#[from] imp::Error),
 }
 
 impl SlsClient {
+    /// Create a new SLS client builder.
+    pub fn builder() -> SlsClientBuilder<'static> {
+        SlsClientBuilder::default()
+    }
+
     /// Put a log group to Aliyun SLS.
     pub async fn put_log(&self, metadata: &LogGroupMetadata, logs: &[Log]) {
         self.try_put_log(metadata, logs).await.ok();
@@ -53,7 +66,7 @@ impl SlsClient {
             return match self.put_log_inner(metadata, logs).await {
                 Err(e) => {
                     if self.inner.enable_trace {
-                        tracing::trace!(err = ?e);
+                        tracing::error!(err = ?e);
                     } else if self.inner.print_internal_error {
                         eprintln!("[tracing-aliyun-sls] error putting log: {e}");
                     }
@@ -103,6 +116,12 @@ impl SlsClient {
             let status = res.status();
             let res = res.text().await?;
             tracing::trace!(%status, %res);
+            if !status.is_success() {
+                return Err(SlsClientError::Http {
+                    status: status.into(),
+                    message: res.into_boxed_str(),
+                });
+            }
         }
         Ok(())
     }
@@ -122,7 +141,8 @@ mod test {
             .unwrap()
             .endpoint("cn-guangzhou.log.aliyuncs.com")
             .project("playground")
-            .logstore("test");
+            .logstore("test")
+            .enable_trace(true);
 
         #[cfg(feature = "deflate")]
         let builder = builder.compression_level(10);

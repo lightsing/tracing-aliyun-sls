@@ -1,5 +1,6 @@
 use crate::client::headers;
-use base64::{Engine, prelude::BASE64_STANDARD};
+use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 use hmac::{Hmac, Mac};
 use jiff::Timestamp;
 use sha1::Sha1;

@@ -82,7 +82,19 @@ impl RequestBuilder {
 
     pub async fn send(self) -> Result<Response> {
         Ok(Response {
-            inner: self.inner.send().await?.error_for_status()?,
+            inner: self.inner.send().await?,
         })
+    }
+}
+
+impl StatusCode {
+    pub(crate) fn is_success(&self) -> bool {
+        self.inner.is_success()
+    }
+}
+
+impl From<StatusCode> for u16 {
+    fn from(status: StatusCode) -> u16 {
+        status.inner.as_u16()
     }
 }

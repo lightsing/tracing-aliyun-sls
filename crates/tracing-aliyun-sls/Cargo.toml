@@ -16,13 +16,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-aliyun-sls = { path = "../aliyun-sls", default-features = false }
+aliyun-sls = { path = "../aliyun-sls", default-features = false, features = ["reporter"] }
 async-channel = { workspace = true, features = ["std"] }
 bitflags.workspace = true
+compact_str.workspace = true
 futures-util = { workspace = true, default-features = false, features = ["async-await-macro", "std"] }
 thiserror.workspace = true
 tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["fmt"] }
+tracing-subscriber = { workspace = true, features = ["std"] }
 
 [features]
 default = ["reqwest-default-tls"]
