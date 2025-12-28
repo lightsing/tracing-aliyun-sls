@@ -31,9 +31,9 @@ litemap = { version = "0.8", default-features = false }
 lz4_flex = { version = "0.11", default-features = false }
 md5 = { version = "0.8", default-features = false }
 miniz_oxide = { version = "0.8", default-features = false }
-nyquest = { git = "https://github.com/bdbai/nyquest" }
-nyquest-interface = { git = "https://github.com/bdbai/nyquest" }
-nyquest-preset = { git = "https://github.com/bdbai/nyquest" }
+nyquest = { version = "0.4" }
+nyquest-interface = { version = "0.4" }
+nyquest-preset = { version = "0.4" }
 reqwest = { version = "0.12", default-features = false }
 sha1 = { version = "0.10", default-features = false }
 smallvec = { git = "https://github.com/lightsing/rust-smallvec.git", branch = "feat/litemap" }

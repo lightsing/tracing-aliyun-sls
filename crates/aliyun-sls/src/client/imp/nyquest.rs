@@ -12,7 +12,7 @@ pub(crate) struct HttpClient {
 #[must_use = "RequestBuilder does nothing until you 'send' it"]
 pub(crate) struct RequestBuilder {
     client: HttpClient,
-    inner: nyquest::Request<nyquest_interface::r#async::BoxedStream>,
+    inner: nyquest::r#async::Request,
 }
 
 pub(crate) struct Response {
